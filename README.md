@@ -51,6 +51,12 @@ bytes are committed to the card.
    library bundle.
 3. Save your program as `code.py` (or any `*.py`) on `CIRCUITPY`.
 
+On a Linux/RPi host with Blinka, the same library installs from PyPI:
+
+```sh
+pip install i2c-microsd-expansion-circuitpython
+```
+
 For packaging a single zip, `pyproject.toml` and `requirements.txt` are included
 so the module can be built with `circuitpython-build-tools`.
 
@@ -293,6 +299,12 @@ Each example is a standalone program — copy it to `CIRCUITPY` as `code.py`.
 | Old pixels remain | Command sent mid-frame | Delay a frame time after `show_neopixels()` |
 
 Deep protocol detail is in the [wiki](wiki/Home.md).
+
+---
+
+## Documentation
+
+Full API documentation is available at https://i2c-microsd-expansion-circuitpython.readthedocs.io/ and can be built locally with `Sphinx <https://www.sphinx-doc.org/>`_ from `docs/`.
 
 ---
 

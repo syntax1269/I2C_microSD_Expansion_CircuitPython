@@ -9,14 +9,14 @@ requires = [
 ]
 
 [project]
-name = "i2c-microSD-expansion"
+name = "i2c-microsd-expansion-circuitpython"
 description = "CircuitPython host library for the I²C microSD Expansion."
 version = "1.0.4"
 readme = "README.md"
 authors = [
     {name = "I2C microSD Expansion contributors"}
 ]
-urls = {Homepage = "https://github.com/syntax1269/I2C_microSD_Expansion_CircuitPython"}
+urls = {Homepage = "https://github.com/syntax1269/I2C_microSD_Expansion_CircuitPython", PyPI = "https://pypi.org/project/i2c-microsd-expansion-circuitpython/"}
 keywords = [
     "i2c",
     "sd",
