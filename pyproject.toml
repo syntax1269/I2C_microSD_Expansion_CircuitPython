@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: 2026 I2C microSD Expansion contributors
+# SPDX-License-Identifier: MIT
+
+[build-system]
+requires = [
+    "setuptools",
+    "wheel",
+    "setuptools-scm",
+]
+
+[project]
+name = "i2c-microSD-expansion"
+description = "CircuitPython host library for the I²C microSD Expansion."
+version = "1.0.4"
+readme = "README.md"
+authors = [
+    {name = "I2C microSD Expansion contributors"}
+]
+urls = {Homepage = "https://github.com/syntax1269/I2C_microSD_Expansion_CircuitPython"}
+keywords = [
+    "i2c",
+    "sd",
+    "module",
+    "attiny",
+    "micropython",
+    "circuitpython",
+]
+license = "MIT"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Embedded Systems",
+    "Topic :: System :: Hardware",
+    "Programming Language :: Python :: 3",
+]
+dynamic = ["dependencies", "optional-dependencies"]
+
+[tool.setuptools]
+packages = ["i2c_microsd_module"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+optional-dependencies = {optional = {file = ["optional_requirements.txt"]}}
+
+
+
+

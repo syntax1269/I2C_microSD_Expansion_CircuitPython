@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 I2C microSD Expansion contributors
+# SPDX-License-Identifier: MIT
+
+Adafruit-Blinka  # Linux/RPi test hosts only (not needed on CircuitPython boards)
+
+
+
+

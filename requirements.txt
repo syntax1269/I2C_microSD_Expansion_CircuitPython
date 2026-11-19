@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 I2C microSD Expansion contributors
+# SPDX-License-Identifier: MIT
+
+adafruit-circuitpython-busdevice>=5.2.17
+
+
+
+
