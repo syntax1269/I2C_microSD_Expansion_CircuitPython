@@ -2,6 +2,56 @@
 
 All notable changes to the CircuitPython host library are documented here.
 
+## [1.0.9] - 2026-11-20
+
+### Added
+
+- Four new examples: `sensor_ring_logger.py` (500 Hz sampling into a 512-byte
+  ring, drained with `write_now()` / `committed_bytes()`),
+  `config_save_load.py` (checked queries plus a staged settings update),
+  `dual_module_mirror.py` (two modules on one bus with `sticky_error`
+  failover) and `threshold_bitbang_alert.py` (CSV logging plus a module-side
+  strobe script).
+
+## [1.0.8] - 2026-11-19
+
+### Added
+
+- **Checked query variants**: `exists_checked`, `file_size_checked` and
+  `is_directory_checked` return `(ok, value)` so "not found" is distinct from
+  a failed I²C transaction. Added `last_ok` shorthand. Original methods
+  unchanged.
+
+## [1.0.7] - 2026-11-19
+
+### Added
+
+- **Non-blocking submit/poll API**: `begin_open_write`, `begin_open_read`,
+  `begin_close`, `begin_format`, `begin_query`, `poll_op`, `write_now`,
+  `read_now`, `committed_bytes`, plus the `AsyncOp` token and `ASYNC_*` result
+  constants. No sleeps; one STATUS read per poll; only one pending operation.
+  No feature flag needed; the blocking API is unchanged.
+- Example `nonblocking_write.py` and updated README/RTD documentation.
+
+## [1.0.6] - 2026-11-19
+
+### Changed
+
+- Documented blocking behavior and worst-case timeouts for every high-level
+  method in README and RTD docs. The Python ports remain synchronous; use a
+  worker thread/task if your application cannot block.
+
+## [1.0.5] - 2026-11-19
+
+### Added
+
+- **`diagnostics()`** returns a one-page health report (module, firmware and
+  protocol version, card/filesystem, capacity and free space, I²C address and
+  configured clock, communication verdict) for customer troubleshooting. Safe
+  before `begin()` (`n/a` for unreadable fields) and leaves `last_error`
+  unchanged. Uses the module's real `free_clusters` value.
+- `examples/diagnostics.py` and an API entry for the new method.
+
 ## [1.0.4] - 2026-11-19
 
 ### Added

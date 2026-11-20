@@ -281,6 +281,12 @@ parsed in the available data.
 | `sweep.py` | Throughput at 100 kHz / 400 kHz / 1 MHz |
 | `exhaustive.py` | Full command-table test (destructive) |
 | `abrupt_recovery.py` | Recover from mid-write power loss |
+| `diagnostics.py` | One-page health report |
+| `nonblocking_write.py` | Non-blocking submit/poll write |
+| `sensor_ring_logger.py` | 500 Hz sampling with an SRAM ring buffer |
+| `config_save_load.py` | Checked queries and staged settings updates |
+| `dual_module_mirror.py` | Two modules, one bus, `sticky_error` failover |
+| `threshold_bitbang_alert.py` | CSV logging + module-side strobe alert |
 
 Each example is a standalone program — copy it to `CIRCUITPY` as `code.py`.
 
@@ -293,14 +299,134 @@ Each example is a standalone program — copy it to `CIRCUITPY` as `code.py`.
 | `begin()` returns False | Wrong pins, no common GND, mixed power | Check the bus; common GND; one supply only |
 | Card not mounted | exFAT or unformatted card | Reformat FAT16/FAT32 |
 | `TIMEOUT` | Bus too slow | Lower the frequency; timeouts scale with the clock |
+| Short reads / NACKs on a Raspberry Pi (Pi 4 or earlier) | Broadcom BSC silicon bug with clock stretching | Add `dtoverlay=i2c-gpio` to `/boot/config.txt`, or use a Pi 5 |
 | `OVERFLOW` | Writing faster than the module commits | Slow down; the library flow-paces |
 | Short reads | Reading before completion | Use `f.read()` in a loop until it returns `b""` |
 | Strip stays dark | Pin not an output / wrong data pin | `set_pin_mode(pin, 0)` first |
 | Old pixels remain | Command sent mid-frame | Delay a frame time after `show_neopixels()` |
 
-Deep protocol detail is in the [wiki](wiki/Home.md).
+Deep protocol detail is in the [wiki](wiki/Home.md). For the Broadcom host bug
+and its workaround, see
+[Clock stretching and Raspberry Pi hosts](wiki/Protocol-Reference.md#clock-stretching-and-raspberry-pi-hosts).
 
 ---
+
+## Blocking behavior (important)
+
+Most high-level methods are **synchronous**: they poll the module's STATUS
+frame in a `delay()` loop until the operation completes or a timeout expires.
+They do not sleep the whole time (the I²C bus stays responsive at the protocol
+level), but your sketch/application **is blocked** for the duration. Plan for
+this with watchdogs, real-time loops, cooperative schedulers and ESP32 tasks.
+
+Timeouts scale up on slow buses (`base × 100000 / I2C_Hz`, floor `base`, 2× below
+50 kHz) and are **capped at 120 s** by the host. `format()` is the exception: it
+uses an unscaled 300 s budget. The ESP32 gateway's `cardinfo` shows the
+configured bus clock.
+
+| Method | Typical wait | Worst case |
+|---|---|---|
+| `begin()` | ~1.5 s | 10 mount attempts × 150 ms + STATUS probes |
+| `read_status()` | one I²C transaction | no loop |
+| `wait_for_op_complete()` | 15 s | 120 s cap |
+| `wait_for_committed()` | 30 s | 120 s cap |
+| `open_write()` / `open_read()` | one op wait | up to 6 × (close-flush barrier + op wait + 200 ms) — potentially minutes |
+| `open_append()` | none | local state only |
+| `write()` | ~0.8 s per 64 B block (flow poll) | 400 attempts × 2 ms per block; append adds one op wait per chunk |
+| `read()` | until bytes arrive | 30 s, up to 120 s cap |
+| `sync()` | until bytes commit | 30 s, up to 120 s cap |
+| `close()` | sync + one op wait | ~45 s typical, up to two capped waits |
+| `format()` | destructive, long | 300 s (unscaled; not subject to the 120 s cap) |
+| `mkdir/rmdir/remove/exists/is_directory/file_size/version/firmware_banner/card_info/list_dir` | one op wait | 15 s, up to 120 s cap |
+| `bitbang_*()` / `show_neopixels()` / `save_pin_mode()` | one I²C transaction | module-side execution is not awaited |
+| `diagnostics()` | a few STATUS reads | no wait loops |
+
+Feed any hardware watchdog around `format()` and the open/write/sync/close
+group. If you cannot afford to block, use the non-blocking API below (no feature flag needed).
+
+## Checked queries (return semantics)
+
+`exists()` / `file_size()` / `is_directory()` return a value even when the I²C
+command fails, so `False` / `0` can mean either "no such file" or "communication
+error". Use the checked variants when that distinction matters — they return
+`(ok, value)`:
+
+```python
+ok, present = microSDexp.exists_checked("A.TXT")
+ok, size = microSDexp.file_size_checked("A.TXT")
+ok, isdir = microSDexp.is_directory_checked("DIR")
+```
+
+`ok` is `False` on I²C/card/path error; inspect `last_error` then. `last_ok` is
+a shorthand for `last_error == MicroSDExpError.OK`. The original methods are
+unchanged and remain convenient when a failed query can simply mean "no".
+
+## Diagnostics
+
+`diagnostics()` returns a one-page report for troubleshooting:
+
+```python
+microSDexp.begin()
+print(microSDexp.diagnostics())
+```
+
+```text
+I2C microSD Expansion
+---------------------
+Module detected:   yes
+Firmware version:  18.8.23
+Protocol version:  2
+SD card detected:  yes
+Filesystem:        FAT32
+Capacity:          3810.0 MiB / 3.72 GiB
+Free space:        3801.9 MiB / 3.71 GiB
+I2C address:       0x6E
+I2C speed:         400 kHz (configured)
+Communication:     OK
+```
+
+It is safe to call before `begin()`; unreadable fields show as `n/a`. The call
+does not change `last_error`.
+
+## Non-blocking API
+
+If your application cannot block, the submit/poll API performs no sleeps:
+
+```python
+from i2c_microsd_module import I2CmicroSD, AsyncOp, ASYNC_BUSY, ASYNC_OK
+
+i2c = busio.I2C(board.SCL, board.SDA, frequency=400000)
+microSDexp = I2CmicroSD(i2c, address=0x6E, scl_hz=400000)
+microSDexp.begin()
+
+op = AsyncOp()
+microSDexp.begin_open_write("ASYNC.TXT", op)
+while microSDexp.poll_op(op) == ASYNC_BUSY:
+    pass                      # do other work here
+
+sent = 0
+while sent < len(data):
+    sent += microSDexp.write_now(data[sent:])  # 0 = try again next pass
+
+target = microSDexp.committed_bytes()
+while microSDexp.committed_bytes() < target:
+    pass
+
+op = AsyncOp()
+microSDexp.begin_close(op)
+while microSDexp.poll_op(op) == ASYNC_BUSY:
+    pass
+```
+
+`begin_open_write`, `begin_open_read`, `begin_close`, `begin_format` and
+`begin_query` submit a command and return immediately. `poll_op()` performs one
+STATUS read (`ASYNC_BUSY`, `ASYNC_OK`, or a module error code). `write_now()`
+and `read_now()` move only what fits right now — zero/empty means "try again",
+not failure. `committed_bytes()` reports the commit counter. Only one async
+operation may be pending at a time.
+
+No compile-time flag is needed (unlike the Arduino port); the blocking methods
+remain available and unchanged. See `nonblocking_write.py`.
 
 ## Documentation
 

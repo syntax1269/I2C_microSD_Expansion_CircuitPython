@@ -11,7 +11,7 @@ requires = [
 [project]
 name = "i2c-microsd-expansion-circuitpython"
 description = "CircuitPython host library for the I²C microSD Expansion."
-version = "1.0.4"
+version = "1.0.8"
 readme = "README.md"
 authors = [
     {name = "I2C microSD Expansion contributors"}

@@ -30,11 +30,15 @@ from .module import (
     I2CmicroSD,
     StatusFrame,
     open_file,
+    AsyncOp,
+    ASYNC_OK,
+    ASYNC_BUSY,
+    ASYNC_IOERR,
 )
 from . import protocol
 from . import config
 
-__version__ = "1.0.4"
+__version__ = "1.0.9"
 __repo__ = "https://github.com/syntax1269/I2C_microSD_Expansion_CircuitPython"
 
 __all__ = [
@@ -45,6 +49,10 @@ __all__ = [
     "I2CmicroSD",
     "StatusFrame",
     "open_file",
+    "AsyncOp",
+    "ASYNC_OK",
+    "ASYNC_BUSY",
+    "ASYNC_IOERR",
     "protocol",
     "config",
     "__version__",
